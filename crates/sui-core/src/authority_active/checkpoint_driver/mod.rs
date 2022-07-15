@@ -28,10 +28,11 @@ use tokio::time::Instant;
 use crate::{
     authority_aggregator::{AuthorityAggregator, ReduceOutput},
     authority_client::AuthorityAPI,
-    checkpoints::{proposal::CheckpointProposal, CheckpointStore},
+    checkpoints::CheckpointStore,
 };
 use sui_types::committee::{Committee, StakeUnit};
 use sui_types::error::SuiResult;
+use sui_types::messages_checkpoint::{CheckpointProposal, SignedCheckpointProposalSummary};
 use tracing::{debug, info, warn};
 
 #[cfg(test)]
@@ -316,7 +317,7 @@ pub async fn get_latest_proposal_and_checkpoint_from_all<A>(
 ) -> Result<
     (
         Option<CertifiedCheckpointSummary>,
-        Vec<(AuthorityName, SignedCheckpointSummary)>,
+        Vec<(AuthorityName, SignedCheckpointProposalSummary)>,
     ),
     SuiError,
 >
@@ -329,7 +330,7 @@ where
         bad_weight: StakeUnit,
         responses: Vec<(
             AuthorityName,
-            Option<SignedCheckpointSummary>,
+            Option<SignedCheckpointProposalSummary>,
             AuthenticatedCheckpoint,
         )>,
         errors: Vec<(AuthorityName, SuiError)>,
@@ -718,14 +719,14 @@ where
                 }
 
                 // Check the proposal is also for the same checkpoint sequence number
-                if current.as_ref().unwrap().summary.sequence_number()
+                if &current.as_ref().unwrap().summary.sequence_number
                     != my_proposal.sequence_number()
                 {
                     // Target validator could be byzantine, just ignore it.
                     continue;
                 }
 
-                let other_proposal = CheckpointProposal::new(
+                let other_proposal = CheckpointProposal::new_from_signed_proposal_summary(
                     current.as_ref().unwrap().clone(),
                     response.detail.unwrap(),
                 );
